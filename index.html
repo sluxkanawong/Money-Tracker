@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --purple:#7C5CFC; --purple-deep:#5B3FD9; --purple-pale:#F1ECFE;
@@ -194,6 +195,7 @@
       <button id="homeNextMonth">&rsaquo;</button>
     </div>
     <div class="content">
+      <div class="panel" id="syncBanner" style="display:none; padding:12px 14px; cursor:pointer;"></div>
       <div class="summary-grid">
         <div class="combo-card" id="homeComboCard">
           <p class="lbl">&#128101; PEI&amp;AE</p>
@@ -439,6 +441,8 @@
       <div class="settings-row" id="goCategories"><div class="l">&#128193; Categories</div><span class="chev">&rsaquo;</span></div>
       <div class="settings-row" id="goCards"><div class="l">&#128179; Cards</div><span class="chev">&rsaquo;</span></div>
 
+      <div class="settings-row" id="googleSyncRow"><div class="l">&#9729; Google Sheets Sync</div><span class="chev" id="googleSyncStatus">Not connected &rsaquo;</span></div>
+
       <div class="settings-row"><div class="l">&#128197; Month start day</div><input type="number" class="settings-input" id="monthStartInput" min="1" max="31" placeholder="1"></div>
       <div class="settings-row"><div class="l">&#128176; Currency</div><span style="color:var(--ink-soft);">THB (&#3647;)</span></div>
       <div class="settings-row"><div class="l">&#128276; Notifications</div><div class="toggle" id="notifToggle"><div class="knob"></div></div></div>
@@ -483,9 +487,10 @@ function load(){
     }
   }catch(e){ console.error("Load failed", e); }
 }
-function save(){
+function save(triggerSync){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
   catch(e){ console.error("Save failed", e); alert("Save failed. Storage might be full or blocked."); }
+  if(triggerSync !== false) scheduleSheetsPush();
 }
 
 // ===================== HELPERS =====================
@@ -1062,12 +1067,153 @@ document.getElementById("settingsLogout").addEventListener("click", () => {
   alert("This app currently saves data locally in your browser. There is no login system yet.");
 });
 
+// ===================== GOOGLE SHEETS SYNC =====================
+const GOOGLE_CLIENT_ID = "717158386661-ikjdu5q5q6hdjs56ecn7miji5om435qd.apps.googleusercontent.com";
+const OVERALL_SHEET_ID = "1UNcTWvy3AE9eA9UOmqP5DCR7kFYle5rD_HOvx3cRN_k";
+const AE_SHEET_ID = "1umh3PReY4i4cDFoQ8KbHZUYX9SWrRN7e5I7VLQs8zWE";
+const SHEET_RANGE = "Sheet1!A1:Z";
+const SHEET_HEADERS = ["ID","Date","Card","Category","Description","Responsibility","MonthlyAmount","Months","CreatedAt"];
+
+let googleAccessToken = null;
+let tokenClient = null;
+let isSyncing = false;
+let syncEnabled = false;
+
+function updateSyncUI(statusText){
+  const banner = document.getElementById("syncBanner");
+  const statusEl = document.getElementById("googleSyncStatus");
+  if(googleAccessToken){
+    statusEl.textContent = (statusText || "Connected") + " \u203a";
+    banner.style.display = "block";
+    banner.style.background = "var(--purple-pale)";
+    banner.style.color = "var(--purple-deep)";
+    banner.textContent = isSyncing ? "Syncing with Google Sheets..." : "Connected to Google Sheets \u2713";
+  }else{
+    statusEl.textContent = "Not connected \u203a";
+    banner.style.display = "block";
+    banner.style.background = "#FDEEDD";
+    banner.style.color = "var(--ae)";
+    banner.textContent = "Tap to connect Google Sheets sync";
+  }
+}
+
+function initGoogleAuth(){
+  if(typeof google === "undefined" || !google.accounts){
+    setTimeout(initGoogleAuth, 300);
+    return;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    callback: async (response) => {
+      if(response.error){
+        console.error("Google auth error", response);
+        alert("Google sign-in failed. Please try again.");
+        return;
+      }
+      googleAccessToken = response.access_token;
+      syncEnabled = true;
+      updateSyncUI();
+      await pullFromGoogleSheets();
+    }
+  });
+  updateSyncUI();
+}
+
+function connectGoogle(){
+  if(!tokenClient){ alert("Google sign-in is still loading, please try again in a moment."); return; }
+  tokenClient.requestAccessToken();
+}
+
+async function sheetsApiFetch(spreadsheetId, path, options){
+  const url = "https://sheets.googleapis.com/v4/spreadsheets/" + spreadsheetId + path;
+  const res = await fetch(url, Object.assign({
+    headers: { "Authorization": "Bearer " + googleAccessToken, "Content-Type": "application/json" }
+  }, options || {}));
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error("Sheets API error " + res.status + ": " + errText);
+  }
+  return res.json();
+}
+
+function txToRow(tx){
+  return [tx.id, tx.date, tx.card, tx.category||"", tx.note||"", tx.resp, tx.installmentMonthly, tx.installmentMonths, tx.createdAt];
+}
+function rowToTx(row){
+  return {
+    id: row[0], date: row[1], card: row[2], category: row[3]||"", note: row[4]||"",
+    resp: row[5], installmentMonthly: parseFloat(row[6])||0, installmentMonths: parseInt(row[7])||1,
+    createdAt: parseInt(row[8]) || Date.now()
+  };
+}
+
+async function pullFromGoogleSheets(){
+  if(!googleAccessToken) return;
+  isSyncing = true; updateSyncUI();
+  try{
+    const result = await sheetsApiFetch(OVERALL_SHEET_ID, "/values/" + encodeURIComponent(SHEET_RANGE), {method:"GET"});
+    const rows = result.values || [];
+    if(rows.length > 1){
+      data.transactions = rows.slice(1).filter(r => r[0]).map(rowToTx);
+    }else{
+      data.transactions = [];
+    }
+    save(false);
+    showScreen(document.querySelector(".nav-btn.active").getAttribute("data-screen"));
+  }catch(e){
+    console.error("Pull failed", e);
+    alert("Could not load data from Google Sheets. Check your connection and try again.");
+  }
+  isSyncing = false; updateSyncUI();
+}
+
+let pushDebounceTimer = null;
+function scheduleSheetsPush(){
+  if(!googleAccessToken) return;
+  if(pushDebounceTimer) clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = setTimeout(pushToGoogleSheets, 600);
+}
+
+async function pushToGoogleSheets(){
+  if(!googleAccessToken) return;
+  isSyncing = true; updateSyncUI();
+  try{
+    const overallRows = [SHEET_HEADERS].concat(data.transactions.map(txToRow));
+    await sheetsApiFetch(OVERALL_SHEET_ID, "/values/" + encodeURIComponent(SHEET_RANGE) + ":clear", {method:"POST"});
+    await sheetsApiFetch(OVERALL_SHEET_ID, "/values/Sheet1!A1?valueInputOption=RAW", {
+      method: "PUT", body: JSON.stringify({values: overallRows})
+    });
+
+    const aeTxs = data.transactions.filter(tx => tx.resp === "AE" || tx.resp === "SPLIT");
+    const aeRows = [SHEET_HEADERS.concat(["AmountForAE"])].concat(aeTxs.map(tx => {
+      const full = tx.installmentMonthly;
+      const aeAmt = tx.resp === "SPLIT" ? full/2 : full;
+      return txToRow(tx).concat([aeAmt]);
+    }));
+    await sheetsApiFetch(AE_SHEET_ID, "/values/" + encodeURIComponent(SHEET_RANGE) + ":clear", {method:"POST"});
+    await sheetsApiFetch(AE_SHEET_ID, "/values/Sheet1!A1?valueInputOption=RAW", {
+      method: "PUT", body: JSON.stringify({values: aeRows})
+    });
+  }catch(e){
+    console.error("Push failed", e);
+    alert("Could not sync to Google Sheets. Your data is still saved locally; it will retry on next change.");
+  }
+  isSyncing = false; updateSyncUI();
+}
+
+document.getElementById("googleSyncRow").addEventListener("click", connectGoogle);
+document.getElementById("syncBanner").addEventListener("click", () => {
+  if(!googleAccessToken) connectGoogle();
+});
+
 // ===================== INIT =====================
 (function init(){
   load();
   document.getElementById("monthStartInput").value = data.settings.monthStart || 1;
   document.getElementById("notifToggle").classList.toggle("on", data.settings.notifications !== false);
   showScreen("HOME");
+  initGoogleAuth();
 })();
 
 </script>
