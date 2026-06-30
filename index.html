@@ -55,12 +55,16 @@
   .panel{ background:#fff; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
   .panel-title{ font-size:10pt; font-weight:600; color:var(--ink-soft); margin:0 0 12px; text-transform:uppercase; letter-spacing:0.04em; }
 
-  .bars{ display:flex; align-items:flex-end; gap:10px; height:130px; margin-bottom:8px; }
+  .bars-wrap{ position:relative; height:160px; margin-bottom:4px; }
+  .bars-grid{ position:absolute; left:0; right:0; top:0; bottom:24px; }
+  .bars-grid .gline{ position:absolute; left:0; right:0; border-top:1px dashed var(--line); }
+  .bars-grid .gline .glabel{ position:absolute; right:0; top:-14px; font-size:10pt; color:var(--ink-soft); background:#fff; padding-left:4px; }
+  .bars{ display:flex; align-items:flex-end; gap:4px; height:100%; position:relative; z-index:1; }
   .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; position:relative; }
-  .bar-col .tag{ background:var(--purple-deep); color:#fff; font-size:10pt; padding:2px 8px; border-radius:8px; margin-bottom:4px; white-space:nowrap; }
-  .bar-col .bar{ width:60%; background:var(--purple-pale); border-radius:6px 6px 0 0; }
+  .bar-col .tag{ background:var(--purple-deep); color:#fff; font-size:10pt; padding:2px 5px; border-radius:6px; margin-bottom:4px; white-space:nowrap; }
+  .bar-col .bar{ width:65%; background:var(--purple-pale); border-radius:4px 4px 0 0; min-height:2px; }
   .bar-col.current .bar{ background:var(--purple); }
-  .bar-col .m{ font-size:10pt; color:var(--ink-soft); margin-top:6px; }
+  .bar-col .m{ font-size:10pt; color:var(--ink-soft); margin-top:6px; white-space:nowrap; }
 
   .next-card{ display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
   .next-card .lbl{ font-size:10pt; color:var(--ink-soft); margin:0 0 4px; }
@@ -102,6 +106,9 @@
   form input:focus, form select:focus{ outline:none; border-color:var(--purple); }
   .field-with-link{ display:flex; justify-content:space-between; align-items:baseline; }
   .field-with-link .link-btn{ font-size:10pt; }
+  .row-8020{ display:flex; gap:10px; }
+  .row-8020 > *:first-child{ flex:0 0 76%; }
+  .row-8020 > *:last-child{ flex:1; min-width:0; }
 
   .resp-grid{ display:flex; gap:8px; }
   .resp-opt{ flex:1; border:2px solid var(--line); border-radius:14px; padding:12px 6px; text-align:center; cursor:pointer; background:#fff; }
@@ -218,16 +225,10 @@
 
       <div class="panel">
         <p class="panel-title">Monthly Payment Plan</p>
-        <div class="bars" id="homeBars"></div>
-      </div>
-
-      <div class="panel next-card" id="homeNextCard">
-        <div>
-          <p class="lbl" id="homeNextLabel">Next month</p>
-          <p class="amt" id="homeNextAmt">&#3647;0.00</p>
-          <p class="cnt" id="homeNextCnt">0 items</p>
+        <div class="bars-wrap">
+          <div class="bars-grid" id="homeBarsGrid"></div>
+          <div class="bars" id="homeBars"></div>
         </div>
-        <span class="chev">&rsaquo;</span>
       </div>
 
       <div class="recent-head">
@@ -251,9 +252,10 @@
     </div>
     <div class="content">
       <div class="tabs-pill" id="txTabs">
-        <button data-tab="DAILY" class="active">PEI&amp;AE</button>
+        <button data-tab="ALL" class="active">ALL</button>
         <button data-tab="PEI">PEI</button>
         <button data-tab="AE">AE</button>
+        <button data-tab="SPLIT">PEI&amp;AE</button>
       </div>
       <div class="search-row">
         <input type="text" id="txSearch" placeholder="Search description or category">
@@ -276,12 +278,16 @@
           <div class="resp-grid" id="respGrid">
             <div class="resp-opt PEI sel" data-resp="PEI"><div class="ic" style="background:var(--pei)">P</div>PEI</div>
             <div class="resp-opt AE" data-resp="AE"><div class="ic" style="background:var(--ae)">A</div>AE</div>
-            <div class="resp-opt SPLIT" data-resp="SPLIT"><div class="ic" style="background:var(--purple)">+</div>Split</div>
+            <div class="resp-opt SPLIT" data-resp="SPLIT"><div class="ic" style="background:var(--purple)">+</div>PEI&amp;AE</div>
           </div>
         </div>
         <div class="field">
           <div class="field-with-link"><label>Card</label><button type="button" class="link-btn" id="goToCardsFromForm">Manage</button></div>
           <select id="cardSelect"></select>
+        </div>
+        <div class="field">
+          <label>Month</label>
+          <select id="billingMonthSelect"></select>
         </div>
         <div class="field">
           <div class="field-with-link"><label>Category</label><button type="button" class="link-btn" id="goToCatsFromForm">Manage</button></div>
@@ -292,12 +298,16 @@
           <input type="text" id="note" placeholder="e.g. Lunch">
         </div>
         <div class="field">
-          <label>Amount per month (THB)</label>
-          <input type="number" id="instMonthly" min="0" step="0.01" placeholder="0.00">
-        </div>
-        <div class="field">
-          <label>Number of months</label>
-          <select id="instMonths"></select>
+          <div class="row-8020">
+            <div>
+              <label>THB</label>
+              <input type="number" id="instMonthly" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div>
+              <label>Repeat</label>
+              <select id="instMonths"></select>
+            </div>
+          </div>
         </div>
         <div class="total-preview">
           <p class="lbl">Total amount</p>
@@ -331,7 +341,7 @@
         <div class="detail-row"><span class="k">Date</span><span class="v" id="detailDate">-</span></div>
         <div class="detail-row"><span class="k">Responsibility</span><span class="v" id="detailResp">-</span></div>
         <div class="detail-row"><span class="k">Amount / month</span><span class="v" id="detailMonthly">-</span></div>
-        <div class="detail-row"><span class="k">Months</span><span class="v" id="detailMonths">-</span></div>
+        <div class="detail-row"><span class="k">Repeat</span><span class="v" id="detailMonths">-</span></div>
         <div class="detail-row" style="border-bottom:none;"><span class="k">Total amount</span><span class="v" id="detailTotal">-</span></div>
       </div>
       <button class="primary-btn" id="detailEditBtn">Edit Transaction</button>
@@ -464,11 +474,11 @@
 
 <script>
 // ===================== DATA =====================
-const STORAGE_KEY = "shared-expense-data-v4";
+const STORAGE_KEY = "shared-expense-data-v5";
 const DEFAULT_CARDS = [
-  {id:"c1", name:"Cash / No card", last4:"", closingDay:null},
-  {id:"c2", name:"KBANK - LINE", last4:"7513", closingDay:null},
-  {id:"c3", name:"SCB - JCB", last4:"", closingDay:null}
+  {name:"Cash / No card", last4:"", closingDay:null},
+  {name:"KBANK - LINE", last4:"7513", closingDay:null},
+  {name:"SCB - JCB", last4:"", closingDay:null}
 ];
 const DEFAULT_CATEGORIES = ["Food & Drink","Shopping","Transport","Bills","Household","Health","Entertainment","ETC"];
 const CAT_ICON = {"Food & Drink":"&#127869;","Shopping":"&#128722;","Transport":"&#128652;","Bills":"&#128202;","Household":"&#127968;","Health":"&#127973;","Entertainment":"&#127916;","ETC":"&#128230;"};
@@ -483,6 +493,11 @@ function load(){
       if(parsed.cards && parsed.cards.length) data.cards = parsed.cards;
       if(parsed.categories && parsed.categories.length) data.categories = parsed.categories;
       data.transactions = parsed.transactions || [];
+      data.transactions.forEach(tx => {
+        if(!tx.billingMonth){
+          tx.billingMonth = monthIdxToKey(legacyBillingStartIdx(tx.date, tx.card));
+        }
+      });
       if(parsed.settings) data.settings = parsed.settings;
     }
   }catch(e){ console.error("Load failed", e); }
@@ -511,12 +526,21 @@ function monthLabelShort(idx){
   const y = Math.floor(idx/12), m = idx%12;
   return monthsShort[m];
 }
-function getCard(id){ return data.cards.find(c => c.id === id); }
-function getCardName(id){ const c = getCard(id); return c ? c.name : "Unknown"; }
+function getCard(name){ return data.cards.find(c => c.name === name); }
+function getCardName(name){ const c = getCard(name); return c ? c.name : (name || "Unknown"); }
+function monthIdxToKey(idx){
+  const y = Math.floor(idx/12), m = idx%12;
+  return y + "-" + String(m+1).padStart(2,"0");
+}
+function keyToMonthIdx(key){
+  const parts = key.split("-").map(Number);
+  return monthIndex(parts[0], parts[1]-1);
+}
 
-function billingStartIdx(dateStr, cardId){
+// Used only to migrate old data that didn't have an explicit billingMonth field yet.
+function legacyBillingStartIdx(dateStr, cardName){
   const d = new Date(dateStr + "T00:00:00");
-  const card = getCard(cardId);
+  const card = getCard(cardName);
   let y = d.getFullYear(), m = d.getMonth();
   if(card && card.closingDay && d.getDate() > card.closingDay){
     m += 1;
@@ -524,14 +548,21 @@ function billingStartIdx(dateStr, cardId){
   }
   return monthIndex(y, m);
 }
+
 function isActiveInMonth(tx, targetKey){
-  const parts = targetKey.split("-").map(Number);
-  const targetIdx = monthIndex(parts[0], parts[1]-1);
-  const startIdx = billingStartIdx(tx.date, tx.card);
+  const targetIdx = keyToMonthIdx(targetKey);
+  const startIdx = keyToMonthIdx(tx.billingMonth);
   const months = tx.installmentMonths || 1;
   return targetIdx >= startIdx && targetIdx < startIdx + months;
 }
 function monthAmount(tx){ return tx.installmentMonthly; }
+function installmentProgressLabel(tx, targetKey){
+  if(!tx.installmentMonths || tx.installmentMonths <= 1) return "";
+  const targetIdx = keyToMonthIdx(targetKey);
+  const startIdx = keyToMonthIdx(tx.billingMonth);
+  const n = (targetIdx - startIdx) + 1;
+  return n + "/" + tx.installmentMonths;
+}
 
 function occurrencesForMonth(targetKey, cardFilter){
   return data.transactions
@@ -549,11 +580,11 @@ function splitAmounts(occ){
   });
   return {pei:pei, ae:ae};
 }
-function respLabel(r){ return r === "PEI" ? "PEI" : r === "AE" ? "AE" : "Split"; }
+function respLabel(r){ return r === "PEI" ? "PEI" : r === "AE" ? "AE" : "PEI&AE"; }
 
 // ===================== STATE =====================
 let viewMonth = new Date(); viewMonth.setDate(1);
-let activeTxTab = "DAILY";
+let activeTxTab = "ALL";
 let editingTxId = null;
 let detailTxId = null;
 let txSearchTerm = "";
@@ -580,10 +611,6 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
 document.getElementById("fabAdd").addEventListener("click", () => openForm(null));
 document.getElementById("homeSeeAll").addEventListener("click", () => showScreen("TRANSACTIONS"));
 document.getElementById("homeMenuBtn").addEventListener("click", () => showScreen("SETTINGS"));
-document.getElementById("homeNextCard").addEventListener("click", () => {
-  viewMonth.setMonth(viewMonth.getMonth()+1);
-  showScreen("TRANSACTIONS");
-});
 
 // ===================== HOME SCREEN =====================
 document.getElementById("homePrevMonth").addEventListener("click", () => { viewMonth.setMonth(viewMonth.getMonth()-1); renderHome(); });
@@ -603,41 +630,45 @@ function renderHome(){
   document.getElementById("homeAeAmt").textContent = fmtMoney(split.ae);
   document.getElementById("homeAeCnt").textContent = occ.filter(o=>o.tx.resp==="AE"||o.tx.resp==="SPLIT").length + " items";
 
-  // bars: 5 months centered on current viewMonth
+  // bars: 9 months -> 2 prior + current + 6 upcoming
   const curIdx = monthIndex(viewMonth.getFullYear(), viewMonth.getMonth());
-  const barIdxs = [curIdx-2, curIdx-1, curIdx, curIdx+1, curIdx+2];
+  const barIdxs = [];
+  for(let i=-2;i<=6;i++) barIdxs.push(curIdx+i);
   const barVals = barIdxs.map(idx => {
     const y = Math.floor(idx/12), m = idx%12;
     const mk2 = y + "-" + String(m+1).padStart(2,"0");
     const o = occurrencesForMonth(mk2, "ALL");
     return o.reduce((s,x)=>s+x.amt,0);
   });
-  const maxVal = Math.max(...barVals, 1);
+  const rawMax = Math.max(...barVals, 1);
+  const gridStep = 5000;
+  const chartMax = Math.ceil(rawMax / gridStep) * gridStep || gridStep;
+
   const barsHtml = barIdxs.map((idx,i) => {
     const isCur = idx === curIdx;
-    const h = Math.max(6, (barVals[i]/maxVal)*100);
+    const h = Math.max(2, (barVals[i]/chartMax)*100);
     return '<div class="bar-col'+(isCur?' current':'')+'">' +
-      (isCur ? '<span class="tag">'+fmtMoney(barVals[i])+'</span>' : '') +
+      (isCur ? '<span class="tag">'+fmtMoneyShort(barVals[i])+'</span>' : '') +
       '<div class="bar" style="height:'+h+'%"></div>' +
       '<span class="m">'+monthLabelShort(idx)+'</span></div>';
   }).join("");
   document.getElementById("homeBars").innerHTML = barsHtml;
 
-  const nextIdx = curIdx+1;
-  const ny = Math.floor(nextIdx/12), nm = nextIdx%12;
-  const nextMk = ny + "-" + String(nm+1).padStart(2,"0");
-  const nextOcc = occurrencesForMonth(nextMk, "ALL");
-  const nextTotal = nextOcc.reduce((s,x)=>s+x.amt,0);
-  document.getElementById("homeNextLabel").textContent = "Next month (" + monthLabelShort(nextIdx).toUpperCase() + " " + ny + ")";
-  document.getElementById("homeNextAmt").textContent = fmtMoney(nextTotal);
-  document.getElementById("homeNextCnt").textContent = nextOcc.length + " items";
+  const gridLineCount = Math.round(chartMax / gridStep);
+  let gridHtml = "";
+  for(let g=0; g<=gridLineCount; g++){
+    const val = g * gridStep;
+    const bottomPct = (val/chartMax)*100;
+    gridHtml += '<div class="gline" style="bottom:'+bottomPct+'%"><span class="glabel">'+fmtMoneyShort(val)+'</span></div>';
+  }
+  document.getElementById("homeBarsGrid").innerHTML = gridHtml;
 
   const recent = occ.slice().sort((a,b)=>b.tx.createdAt-a.tx.createdAt).slice(0,5);
   const listEl = document.getElementById("homeRecentList");
   if(recent.length === 0){
     listEl.innerHTML = '<p class="empty">No transactions yet</p>';
   }else{
-    listEl.innerHTML = recent.map(o => txRowHtml(o.tx, o.amt)).join("");
+    listEl.innerHTML = recent.map(o => txRowHtml(o.tx, o.amt, mk)).join("");
     bindTxRowClicks(listEl);
   }
 }
@@ -658,14 +689,15 @@ document.getElementById("txSearch").addEventListener("input", (e) => {
   renderTransactions();
 });
 
-function txRowHtml(tx, amt){
+function txRowHtml(tx, amt, targetKey){
   const icon = CAT_ICON[tx.category] || "&#128230;";
-  const installTag = (tx.installmentMonths > 1) ? (' &middot; '+tx.installmentMonths+' months') : '';
+  const progress = targetKey ? installmentProgressLabel(tx, targetKey) : (tx.installmentMonths > 1 ? ("1/"+tx.installmentMonths) : "");
+  const cardLine = getCardName(tx.card) + (progress ? (" - " + progress) : "");
   return '<div class="tx-row" data-id="'+tx.id+'">' +
     '<div class="tx-icon">'+icon+'</div>' +
     '<div class="tx-info">' +
       '<p class="t1">'+(tx.note || tx.category || "Transaction")+'</p>' +
-      '<p class="t2"><span class="resp-chip '+tx.resp+'">'+respLabel(tx.resp)+'</span> '+getCardName(tx.card)+installTag+'</p>' +
+      '<p class="t2"><span class="resp-chip '+tx.resp+'">'+respLabel(tx.resp)+'</span> '+cardLine+'</p>' +
     '</div>' +
     '<div class="tx-amt"><p class="a1">'+fmtMoney(amt)+'</p><p class="a2">'+tx.date+'</p></div>' +
   '</div>';
@@ -680,8 +712,9 @@ function renderTransactions(){
   document.getElementById("txMonthLabel").textContent = monthLabelText(viewMonth);
   const mk = monthKey(viewMonth);
   let occ = occurrencesForMonth(mk, "ALL");
-  if(activeTxTab === "PEI") occ = occ.filter(o => o.tx.resp === "PEI" || o.tx.resp === "SPLIT");
-  if(activeTxTab === "AE") occ = occ.filter(o => o.tx.resp === "AE" || o.tx.resp === "SPLIT");
+  if(activeTxTab === "PEI") occ = occ.filter(o => o.tx.resp === "PEI");
+  if(activeTxTab === "AE") occ = occ.filter(o => o.tx.resp === "AE");
+  if(activeTxTab === "SPLIT") occ = occ.filter(o => o.tx.resp === "SPLIT");
   if(txSearchTerm){
     occ = occ.filter(o => (o.tx.note||"").toLowerCase().includes(txSearchTerm) || (o.tx.category||"").toLowerCase().includes(txSearchTerm));
   }
@@ -698,7 +731,7 @@ function renderTransactions(){
   Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(date => {
     const d = new Date(date + "T00:00:00");
     html += '<p class="day-head">' + d.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short",year:"numeric"}) + '</p>';
-    byDate[date].forEach(o => { html += txRowHtml(o.tx, o.amt); });
+    byDate[date].forEach(o => { html += txRowHtml(o.tx, o.amt, mk); });
   });
   listEl.innerHTML = html;
   bindTxRowClicks(listEl);
@@ -707,7 +740,7 @@ function renderTransactions(){
 // ===================== ADD / EDIT FORM =====================
 function populateCardSelect(){
   document.getElementById("cardSelect").innerHTML = data.cards.map(c =>
-    '<option value="'+c.id+'">'+c.name+(c.last4?' (\u2022\u2022\u2022\u2022 '+c.last4+')':'')+'</option>'
+    '<option value="'+c.name+'">'+c.name+(c.last4?' (\u2022\u2022\u2022\u2022 '+c.last4+')':'')+'</option>'
   ).join("");
 }
 function populateCategorySelect(){
@@ -717,9 +750,32 @@ function populateCategorySelect(){
 }
 function populateMonthsSelect(){
   let html = "";
-  for(let i=1;i<=24;i++){ html += '<option value="'+i+'">'+i+(i===1?" month":" months")+'</option>'; }
+  for(let i=1;i<=24;i++){ html += '<option value="'+i+'">'+(i===1?"-":i)+'</option>'; }
   document.getElementById("instMonths").innerHTML = html;
 }
+function populateBillingMonthSelect(){
+  const todayIdx = monthIndex(new Date().getFullYear(), new Date().getMonth());
+  let html = "";
+  for(let i=-3;i<=23;i++){
+    const idx = todayIdx + i;
+    html += '<option value="'+monthIdxToKey(idx)+'">'+monthLabelShort(idx)+' '+Math.floor(idx/12)+'</option>';
+  }
+  document.getElementById("billingMonthSelect").innerHTML = html;
+}
+function suggestBillingMonth(cardName){
+  const todayKey = monthKey(new Date());
+  const cardTxs = data.transactions.filter(t => t.card === cardName);
+  if(cardTxs.length === 0) return todayKey;
+  const latest = cardTxs.slice().sort((a,b) => b.createdAt - a.createdAt)[0];
+  // If the card's last entry was already pushed to a future month, keep using that month;
+  // otherwise default back to the current real-world month.
+  return keyToMonthIdx(latest.billingMonth) > keyToMonthIdx(todayKey) ? latest.billingMonth : todayKey;
+}
+document.getElementById("cardSelect").addEventListener("change", () => {
+  if(editingTxId) return; // don't override the month when editing an existing entry
+  const select = document.getElementById("billingMonthSelect");
+  select.value = suggestBillingMonth(document.getElementById("cardSelect").value);
+});
 
 document.querySelectorAll(".resp-opt").forEach(opt => {
   opt.addEventListener("click", () => {
@@ -752,6 +808,7 @@ function openForm(txId){
   populateCardSelect();
   populateCategorySelect();
   populateMonthsSelect();
+  populateBillingMonthSelect();
   const formTitle = document.getElementById("formTitle");
   const deleteBtn = document.getElementById("formDeleteBtn");
 
@@ -761,6 +818,7 @@ function openForm(txId){
     deleteBtn.style.display = "block";
     setSelectedResp(tx.resp);
     document.getElementById("cardSelect").value = tx.card;
+    document.getElementById("billingMonthSelect").value = tx.billingMonth;
     document.getElementById("categorySelect").value = tx.category || data.categories[0];
     document.getElementById("note").value = tx.note || "";
     document.getElementById("instMonthly").value = tx.installmentMonthly;
@@ -774,6 +832,8 @@ function openForm(txId){
     document.getElementById("instMonthly").value = "";
     document.getElementById("instMonths").value = "1";
     document.getElementById("date").value = new Date().toISOString().slice(0,10);
+    const firstCard = document.getElementById("cardSelect").value;
+    document.getElementById("billingMonthSelect").value = suggestBillingMonth(firstCard);
   }
   updateInstPreview();
   showScreen("ADD");
@@ -786,9 +846,11 @@ document.getElementById("expenseForm").addEventListener("submit", (ev) => {
   const months = parseInt(document.getElementById("instMonths").value) || 1;
   const date = document.getElementById("date").value;
   if(!date){ alert("Please choose a date."); return; }
+  const billingMonth = document.getElementById("billingMonthSelect").value;
 
   const txData = {
     card: document.getElementById("cardSelect").value,
+    billingMonth: billingMonth,
     category: document.getElementById("categorySelect").value,
     note: document.getElementById("note").value.trim(),
     resp: getSelectedResp(),
@@ -839,7 +901,7 @@ function openDetail(txId){
   document.getElementById("detailDate").textContent = tx.date;
   document.getElementById("detailResp").textContent = respLabel(tx.resp);
   document.getElementById("detailMonthly").textContent = fmtMoney(tx.installmentMonthly);
-  document.getElementById("detailMonths").textContent = tx.installmentMonths + (tx.installmentMonths===1?" month":" months");
+  document.getElementById("detailMonths").textContent = tx.installmentMonths > 1 ? String(tx.installmentMonths) : "-";
   document.getElementById("detailTotal").textContent = fmtMoney(tx.installmentMonthly * tx.installmentMonths);
   showScreen("DETAIL");
 }
@@ -887,7 +949,7 @@ function buildExportWorkbook(scope){
 
   let minIdx = Infinity, maxIdx = -Infinity;
   data.transactions.forEach(tx => {
-    const startIdx = billingStartIdx(tx.date, tx.card);
+    const startIdx = keyToMonthIdx(tx.billingMonth);
     const endIdx = startIdx + (tx.installmentMonths||1) - 1;
     if(startIdx < minIdx) minIdx = startIdx;
     if(endIdx > maxIdx) maxIdx = endIdx;
@@ -902,7 +964,7 @@ function buildExportWorkbook(scope){
     return monthsShort[p[1]-1] + " " + p[0];
   });
 
-  const cardsUsed = data.cards.filter(c => data.transactions.some(tx => tx.card === c.id));
+  const cardsUsed = data.cards.filter(c => data.transactions.some(tx => tx.card === c.name));
 
   function filterResp(occ){
     if(scope === "PEI") return occ.filter(o => o.tx.resp === "PEI" || o.tx.resp === "SPLIT");
@@ -921,7 +983,7 @@ function buildExportWorkbook(scope){
   cardsUsed.forEach(card => {
     const vals = monthKeys.map((mk,i) => {
       let occ = data.transactions
-        .filter(tx => tx.card === card.id)
+        .filter(tx => tx.card === card.name)
         .filter(tx => isActiveInMonth(tx, mk))
         .map(tx => ({tx, amt: monthAmount(tx)}));
       occ = filterResp(occ);
@@ -938,7 +1000,7 @@ function buildExportWorkbook(scope){
   // Sheet 2: Card Details
   const detailRows = [];
   cardsUsed.forEach(card => {
-    let txs = data.transactions.filter(tx => tx.card === card.id);
+    let txs = data.transactions.filter(tx => tx.card === card.name);
     if(scope === "PEI") txs = txs.filter(tx => tx.resp === "PEI" || tx.resp === "SPLIT");
     if(scope === "AE") txs = txs.filter(tx => tx.resp === "AE" || tx.resp === "SPLIT");
     txs = txs.slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -1021,23 +1083,23 @@ document.getElementById("cardAddBtn").addEventListener("click", () => {
   const cutoffInput = document.getElementById("newCardCutoff");
   const name = nameInput.value.trim();
   if(!name) return;
-  const id = "c" + Date.now();
-  data.cards.push({id, name, last4: last4Input.value.trim(), closingDay: parseInt(cutoffInput.value) || null});
+  if(data.cards.some(c => c.name === name)){ alert("A card with this name already exists."); return; }
+  data.cards.push({name, last4: last4Input.value.trim(), closingDay: parseInt(cutoffInput.value) || null});
   nameInput.value = ""; last4Input.value = ""; cutoffInput.value = "";
   save(); renderCards();
 });
 
 function renderCards(){
   document.getElementById("cardListFull").innerHTML = data.cards.map(c => {
-    const cnt = data.transactions.filter(tx => tx.card === c.id).length;
+    const cnt = data.transactions.filter(tx => tx.card === c.name).length;
     const cutoffTxt = c.closingDay ? (" &middot; cutoff day " + c.closingDay) : "";
     return '<div class="list-row"><p class="l1">&#128179; '+c.name+(c.last4?' (\u2022\u2022\u2022\u2022 '+c.last4+')':'')+'<br><span style="color:var(--ink-soft); font-weight:400; font-size:10pt;">'+cnt+' items'+cutoffTxt+'</span></p>' +
-      '<button class="del-x" data-card="'+c.id+'">&times;</button></div>';
+      '<button class="del-x" data-card="'+c.name+'">&times;</button></div>';
   }).join("");
   document.querySelectorAll("#cardListFull .del-x").forEach(btn => {
     btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-card");
-      data.cards = data.cards.filter(c => c.id !== id);
+      const name = btn.getAttribute("data-card");
+      data.cards = data.cards.filter(c => c.name !== name);
       save(); renderCards();
     });
   });
@@ -1072,7 +1134,7 @@ const GOOGLE_CLIENT_ID = "717158386661-ikjdu5q5q6hdjs56ecn7miji5om435qd.apps.goo
 const OVERALL_SHEET_ID = "1UNcTWvy3AE9eA9UOmqP5DCR7kFYle5rD_HOvx3cRN_k";
 const AE_SHEET_ID = "1umh3PReY4i4cDFoQ8KbHZUYX9SWrRN7e5I7VLQs8zWE";
 const SHEET_RANGE = "Sheet1!A1:Z";
-const SHEET_HEADERS = ["ID","Date","Card","Category","Description","Responsibility","MonthlyAmount","Months","CreatedAt"];
+const SHEET_HEADERS = ["ID","Date","Card","Category","Description","Responsibility","MonthlyAmount","Months","CreatedAt","BillingMonth"];
 
 let googleAccessToken = null;
 let tokenClient = null;
@@ -1184,14 +1246,20 @@ async function sheetsApiFetch(spreadsheetId, path, options){
 }
 
 function txToRow(tx){
-  return [tx.id, tx.date, tx.card, tx.category||"", tx.note||"", tx.resp, tx.installmentMonthly, tx.installmentMonths, tx.createdAt];
+  return [tx.id, tx.date, tx.card, tx.category||"", tx.note||"", tx.resp, tx.installmentMonthly, tx.installmentMonths, tx.createdAt, tx.billingMonth];
 }
 function rowToTx(row){
-  return {
+  const tx = {
     id: row[0], date: row[1], card: row[2], category: row[3]||"", note: row[4]||"",
     resp: row[5], installmentMonthly: parseFloat(row[6])||0, installmentMonths: parseInt(row[7])||1,
-    createdAt: parseInt(row[8]) || Date.now()
+    createdAt: parseInt(row[8]) || Date.now(),
+    billingMonth: row[9] || ""
   };
+  if(!tx.billingMonth){
+    // Migrate legacy rows saved before the manual "Month" field existed.
+    tx.billingMonth = monthIdxToKey(legacyBillingStartIdx(tx.date, tx.card));
+  }
+  return tx;
 }
 
 async function pullFromGoogleSheets(){
